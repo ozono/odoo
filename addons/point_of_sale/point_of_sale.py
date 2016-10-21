@@ -20,6 +20,7 @@
 ##############################################################################
 
 import logging
+import psycopg2
 import time
 from datetime import datetime
 
@@ -442,8 +443,7 @@ class pos_session(osv.osv):
         """
         call the Point Of Sale interface and set the pos.session to 'opened' (in progress)
         """
-        if context is None:
-            context = dict()
+        context = dict(context or {})
 
         if isinstance(ids, (int, long)):
             ids = [ids]
@@ -536,8 +536,7 @@ class pos_session(osv.osv):
         return True
 
     def open_frontend_cb(self, cr, uid, ids, context=None):
-        if not context:
-            context = {}
+        context = dict(context or {})
         if not ids:
             return {}
         for session in self.browse(cr, uid, ids, context=context):
@@ -673,6 +672,9 @@ class pos_order(osv.osv):
 
             try:
                 self.signal_workflow(cr, uid, [order_id], 'paid')
+            except psycopg2.OperationalError:
+                # do not hide transactional errors, the order(s) won't be saved!
+                raise
             except Exception as e:
                 _logger.error('Could not fully process the POS Order: %s', tools.ustr(e))
 
